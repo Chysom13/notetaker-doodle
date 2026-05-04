@@ -4,7 +4,44 @@ This backend is built with FastAPI and uses astral's [`uv`](https://github.com/a
 
 Below is a guide on how this environment was set up and how you can manage dependencies and run the application using `uv`.
 
-## 1. Initializing a Project with `uv`
+## Prerequisites: Installing `uv`
+
+If you are setting up this project for the first time, you need to install `uv`.
+
+### 1. Install `uv`
+Open PowerShell and run the following command to download and install `uv`:
+```powershell
+powershell -ExecutionPolicy ByPass -c "irm https://astral.sh/uv/install.ps1 | iex"
+```
+
+### 2. Add `uv` to your System PATH
+The installer usually adds `uv` to your path automatically. If your terminal still says "uv is not recognized" after restarting it, you can manually add it to your environment variables through PowerShell:
+
+```powershell
+# Add the default installation path to your User PATH
+$USER_PATH = [Environment]::GetEnvironmentVariable("Path", "User")
+[Environment]::SetEnvironmentVariable("Path", "$USER_PATH;$HOME\.cargo\bin", "User")
+```
+*Note: Restart your terminal after running this for the changes to take effect.*
+
+## Getting Started: Installing Dependencies
+
+Since this project already exists, you don't need to manually install each package. 
+
+1. Navigate to the backend directory:
+   ```bash
+   cd backend
+   ```
+
+2. **Download and install all dependencies:**
+   ```bash
+   uv sync
+   ```
+   *This command reads the `uv.lock` file, automatically creates a virtual environment (`.venv`), and installs the exact versions of the packages needed.*
+
+---
+
+## Background: Initializing a Project with `uv` (For Reference)
 
 If you were starting from scratch, you would initialize a new project by running:
 ```bash
