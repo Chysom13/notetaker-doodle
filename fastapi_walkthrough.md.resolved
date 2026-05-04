@@ -1,0 +1,85 @@
+# FastAPI Backend Architecture Documentation
+
+The backend has been completely restructured to use a standard, modular layout tailored for FastAPI applications. This approach enforces a clean separation of concerns, making the app easier to maintain, test, and scale. 
+
+Below is a detailed breakdown of each component in the newly built `app/` directory and its purpose within the ecosystem.
+
+---
+
+## 1. Core Application Component
+**`app/main.py`**
+- **Purpose**: The entry point of your FastAPI application.
+- **Functionality**:
+  - Initializes the global `FastAPI` instance.
+  - Automatically triggers the creation of database tables using SQLAlchemy's `Base.metadata.create_all()` upon startup.
+  - Configures the `CORSMiddleware`, allowing your frontend (or other clients) to make cross-origin requests to your API.
+  - Registers the API routers using `app.include_router()`, binding your modular endpoint definitions to the main application lifecycle.
+
+---
+
+## 2. Configuration Layer (`app/core/`)
+**`app/core/config.py`**
+- **Purpose**: Centralized application settings and environment variable management.
+- **Functionality**:
+  - Contains a `Settings` class that acts as a single source of truth for the application's configuration (like the project name, database URLs, API keys, etc.).
+  - Currently stores the `SQLALCHEMY_DATABASE_URL` so that any module needing to connect to the database references this specific variable, avoiding hardcoded strings throughout the project.
+
+---
+
+## 3. Database Layer (`app/db/`)
+**`app/db/database.py`**
+- **Purpose**: SQLAlchemy engine setup and connection pooling.
+- **Functionality**:
+  - Creates the database `engine` which is the low-level connection to the SQLite database.
+  - Generates the `SessionLocal` factory, which creates independent database sessions for every API request.
+
+**`app/db/base.py`**
+- **Purpose**: Shared declarative base for all ORM models.
+- **Functionality**:
+  - Instantiates `declarative_base()`. All SQLAlchemy database models inherit from this base. This allows SQLAlchemy to traverse all your models and auto-generate the underlying tables when `create_all()` is called in `main.py`.
+
+---
+
+## 4. Object-Relational Mapping (ORM) Layer (`app/models/`)
+**`app/models/note.py`**
+- **Purpose**: Defines the actual database tables.
+- **Functionality**:
+  - Houses the `Note` class which represents the `notes` table in the SQLite database.
+  - Maps Python data types to SQL data types (e.g., `Column(String)` maps to SQL `VARCHAR`).
+  - Defines the constraints for your data (e.g., primary keys, index behavior, auto-generating UUIDs, and updating timestamps).
+
+---
+
+## 5. Validation and Serialization Layer (`app/schemas/`)
+**`app/schemas/note.py`**
+- **Purpose**: Pydantic models for enforcing strict data validation and type serialization.
+- **Functionality**:
+  - While `models` define how data is stored in the database, `schemas` define how data is transferred over the HTTP network.
+  - Contains `NoteCreate` (the shape of data needed when the user creates a note) and `NoteUpdate`.
+  - The `Note` schema includes an `id` and `created_at` timestamp and specifies `from_attributes = True`, meaning Pydantic knows how to automatically parse the SQLAlchemy ORM objects into JSON.
+
+---
+
+## 6. Business Logic Layer (`app/crud/`)
+**`app/crud/note.py`**
+- **Purpose**: Isolate Database Operations (CRUD: Create, Read, Update, Delete).
+- **Functionality**:
+  - Rather than writing raw database queries inside the API route functions, all database logic is abstracted here.
+  - For example, `get_notes` queries the database with offset/limit pagination, and `create_note` creates an instance of the ORM model, adds it to the session, and commits it. This keeps the presentation logic out of your database logic.
+
+---
+
+## 7. Presentation Layer (`app/api/`)
+**`app/api/deps.py`**
+- **Purpose**: FastAPI Dependency Injection components.
+- **Functionality**:
+  - Contains the `get_db` generator function. Every time an endpoint is hit, FastAPI calls this dependency, which spins up a new database session, yields it to the endpoint to fulfill the request, and importantly, safely closes the session when the request is done.
+
+**`app/api/routes/notes.py`**
+- **Purpose**: The HTTP Request Handlers (Controllers).
+- **Functionality**:
+  - Houses the `APIRouter` which groups all note-related endpoints (`GET /`, `POST /`, `PUT /{note_id}`, `DELETE /{note_id}`).
+  - Validates incoming HTTP requests via Pydantic schemas, calls the relevant CRUD business logic function using the injected DB session (`Depends(deps.get_db)`), and safely returns the response back to the client.
+
+> [!TIP]
+> This pattern sets your project up nicely. If you ever want to add a new feature like `Tags` or `Users`, you simply create `app/models/user.py`, `app/schemas/user.py`, `app/crud/user.py`, and `app/api/routes/users.py`, keeping the core of the app clean and extensible!
